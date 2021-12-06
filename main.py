@@ -33,51 +33,76 @@ def get_comics(comics_number):
     return response['img'], response['alt']
 
 
-def call_vk_api(url, payload):
+def get_wall_upload_server(vk_access_token, api_version, group_id):
+    base_url = 'https://api.vk.com/method/'
+    method = 'photos.getWallUploadServer'
+    payload = {
+        'access_token': vk_access_token,
+        'v': api_version,
+        'group_id': group_id,
+    }
     response = requests.get(
-        url,
+        urljoin(base_url, method),
         params=payload
     )
     response.raise_for_status()
     response = response.json()
     if 'error' in response:
         raise requests.exceptions.HTTPError(response['error'])
-    return response
+    return response['response']['upload_url']
 
 
-def publish_image(group_id, base_url, base_payload, file_path, comment):
-    def call_vk(method, payload):
-        url = urljoin(base_url, method)
-        payload = base_payload | payload
-        return call_vk_api(url, payload)
-
-    payload = {
-        'group_id': group_id,
-    }
-    upload_url = call_vk('photos.getWallUploadServer', payload)['response']['upload_url']
-
+def upload_file(upload_url, file_path):
     with open(file_path, 'rb') as file:
         response = requests.post(upload_url, files={'photo': file})
         response.raise_for_status()
     response = response.json()
     if 'error' in response:
         raise requests.exceptions.HTTPError(response['error'])
+    return response
 
+
+def save_wall_photo(vk_access_token, api_version, group_id, server, photo, hash):
+    base_url = 'https://api.vk.com/method/'
+    method = 'photos.saveWallPhoto'
     payload = {
+        'access_token': vk_access_token,
+        'v': api_version,
         'group_id': group_id,
-        'server': response['server'],
-        'photo': response['photo'],
-        'hash': response['hash'],
+        'server': server,
+        'photo': photo,
+        'hash': hash,
     }
-    response = call_vk('photos.saveWallPhoto', payload)['response'][0]
+    response = requests.get(
+        urljoin(base_url, method),
+        params=payload
+    )
+    response.raise_for_status()
+    response = response.json()
+    if 'error' in response:
+        raise requests.exceptions.HTTPError(response['error'])
+    return response['response'][0]
 
+
+def post_photo(vk_access_token, api_version, group_id, owner_id, photo_id, message):
+    base_url = 'https://api.vk.com/method/'
+    method = 'wall.post'
     payload = {
+        'access_token': vk_access_token,
+        'v': api_version,
         'owner_id': -group_id,
         'from_group': 1,
-        'attachments': f'photo{response["owner_id"]}_{response["id"]}',
-        'message': comment,
+        'attachments': f'photo{owner_id}_{photo_id}',
+        'message': message,
     }
-    call_vk('wall.post', payload)
+    response = requests.get(
+        urljoin(base_url, method),
+        params=payload
+    )
+    response.raise_for_status()
+    response = response.json()
+    if 'error' in response:
+        raise requests.exceptions.HTTPError(response['error'])
 
 
 if __name__ == '__main__':
@@ -92,21 +117,21 @@ if __name__ == '__main__':
     vk_access_token = env.str('VK_ACCESS_TOKEN')
     group_id = env.int('VK_GROUP_ID')
     api_version = env.str('VK_API_VERSION', '5.131')
-    base_url = 'https://api.vk.com/method/'
-    base_payload = {
-        'access_token': vk_access_token,
-        'v': api_version,
-    }
-
-    publish_image(
-        group_id,
-        base_url,
-        base_payload,
-        file_path,
-        comment,
-    )
 
     try:
+        upload_url = get_wall_upload_server(vk_access_token, api_version, group_id)
+        upload_response = upload_file(upload_url, file_path)
+        save_response = save_wall_photo(vk_access_token,
+                                        api_version,
+                                        group_id,
+                                        upload_response['server'],
+                                        upload_response['photo'],
+                                        upload_response['hash'])
+        post_photo(vk_access_token,
+                   api_version,
+                   group_id,
+                   save_response["owner_id"],
+                   save_response["id"],
+                   comment)
+    finally:
         file_path.unlink()
-    except:
-        print('Error while deleting file', file_path)
