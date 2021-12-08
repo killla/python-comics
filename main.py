@@ -6,6 +6,11 @@ from environs import Env
 import requests
 
 
+def check_errors(response):
+    if 'error' in response:
+        raise requests.exceptions.HTTPError(response['error'])
+
+
 def download_image(url, filename, payload=None):
     file_path = Path.cwd() / filename
 
@@ -47,8 +52,7 @@ def get_wall_upload_server(vk_access_token, api_version, group_id):
     )
     response.raise_for_status()
     response = response.json()
-    if 'error' in response:
-        raise requests.exceptions.HTTPError(response['error'])
+    check_errors(response)
     return response['response']['upload_url']
 
 
@@ -57,8 +61,7 @@ def upload_file(upload_url, file_path):
         response = requests.post(upload_url, files={'photo': file})
     response.raise_for_status()
     response = response.json()
-    if 'error' in response:
-        raise requests.exceptions.HTTPError(response['error'])
+    check_errors(response)
     return response
 
 
@@ -79,8 +82,7 @@ def save_wall_photo(vk_access_token, api_version, group_id, server, photo, photo
     )
     response.raise_for_status()
     response = response.json()
-    if 'error' in response:
-        raise requests.exceptions.HTTPError(response['error'])
+    check_errors(response)
     return response['response'][0]
 
 
@@ -100,9 +102,7 @@ def post_photo(vk_access_token, api_version, group_id, owner_id, photo_id, messa
         params=payload
     )
     response.raise_for_status()
-    response = response.json()
-    if 'error' in response:
-        raise requests.exceptions.HTTPError(response['error'])
+    check_errors(response.json())
 
 
 if __name__ == '__main__':
