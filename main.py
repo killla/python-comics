@@ -55,7 +55,7 @@ def get_wall_upload_server(vk_access_token, api_version, group_id):
 def upload_file(upload_url, file_path):
     with open(file_path, 'rb') as file:
         response = requests.post(upload_url, files={'photo': file})
-        response.raise_for_status()
+    response.raise_for_status()
     response = response.json()
     if 'error' in response:
         raise requests.exceptions.HTTPError(response['error'])
