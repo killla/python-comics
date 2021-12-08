@@ -62,7 +62,7 @@ def upload_file(upload_url, file_path):
     return response
 
 
-def save_wall_photo(vk_access_token, api_version, group_id, server, photo, hash):
+def save_wall_photo(vk_access_token, api_version, group_id, server, photo, photo_hash):
     base_url = 'https://api.vk.com/method/'
     method = 'photos.saveWallPhoto'
     payload = {
@@ -71,7 +71,7 @@ def save_wall_photo(vk_access_token, api_version, group_id, server, photo, hash)
         'group_id': group_id,
         'server': server,
         'photo': photo,
-        'hash': hash,
+        'hash': photo_hash,
     }
     response = requests.get(
         urljoin(base_url, method),
